@@ -7,6 +7,7 @@ use web_sys as web;
 pub struct Request {
     method: String,
     url: String,
+    body: Option<String>,
 }
 
 impl Request {
@@ -14,12 +15,23 @@ impl Request {
         Request {
             method: method.into(),
             url: url.into(),
+            body: None,
+        }
+    }
+
+    pub fn body(self, b: String) -> Self {
+        Request {
+            body: Some(b),
+            ..self
         }
     }
 
     pub fn send<R: Response>(self) -> impl Future<Item = R::Item, Error = Error> {
         let mut init = web::RequestInit::new();
         init.method(&self.method);
+        if let Some(b) = self.body {
+            init.body(Some(&JsValue::from_str(&b)));
+        }
         let request = web::Request::new_with_str_and_init(&self.url, &init).unwrap();
         let promise = web::window().unwrap().fetch_with_request(&request);
         R::send(JsFuture::from(promise).map(|response| {
@@ -61,4 +73,8 @@ impl Response for Text {
 
 pub fn get(url: &str) -> Request {
     Request::new("GET", url)
+}
+
+pub fn post(url: &str, body: String) -> Request {
+    Request::new("POST", url).body(body)
 }
