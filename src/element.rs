@@ -14,6 +14,7 @@ pub struct Element<C: Children> {
     ns: Ns,
     class: String,
     attrs: Vec<Attr>,
+    styles: Vec<Style>,
     listeners: Vec<Listener<C::Message>>,
     children: C,
     node: Option<web::Element>,
@@ -23,6 +24,26 @@ pub struct Element<C: Children> {
 pub enum Ns {
     Html,
     Svg,
+}
+
+#[derive(Debug)]
+struct Style {
+    name: S,
+    value: S,
+}
+
+impl Style {
+    fn patch(&self, old_value: Option<&str>, element: &web::Element) {
+        if Some(self.value.as_ref()) != old_value {
+            element
+                .dyn_ref::<web::HtmlElement>()
+                .map(|e| {
+                    e.style()
+                    .set_property(&self.name, &self.value)
+                    .expect("style.set_property");
+                });
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -121,6 +142,7 @@ where
             ns,
             class: String::new(),
             attrs: Vec::new(),
+            styles: Vec::new(),
             listeners: Vec::new(),
             children: C::new(),
             node: None,
@@ -129,6 +151,14 @@ where
 
     pub fn attr<N: Into<S>, V: Into<S>>(mut self, name: N, value: V) -> Self {
         self.attrs.push(Attr {
+            name: name.into(),
+            value: value.into(),
+        });
+        self
+    }
+    
+    pub fn style<N: Into<S>, V: Into<S>>(mut self, name: N, value: V) -> Self {
+        self.styles.push(Style {
             name: name.into(),
             value: value.into(),
         });
@@ -202,6 +232,10 @@ where
             attr.patch(None, &node);
         }
 
+        for style in &self.styles {
+            style.patch(None, &node);
+        }
+
         if !self.class.is_empty() {
             node.set_attribute("class", &self.class)
                 .expect("set_attribute");
@@ -247,6 +281,22 @@ where
                 old_node
                     .remove_attribute(&old_attr.name)
                     .expect("remove_attribute");
+            }
+        }
+
+        for style in &self.styles {
+            let old_style = old.styles.iter()
+                .find(|old_style| old_style.name == style.name)
+                .map(|s| &*s.value);
+            style.patch(old_style, &old_node);
+        }
+
+        for old_style in &old.styles {
+            if !self.styles.iter().any(|new_style| new_style.name == old_style.name) {
+                old_node.dyn_ref::<web::HtmlElement>().map(|e| {
+                    e.style().remove_property(&old_style.name)
+                    .expect("style.remove_property");
+                });
             }
         }
 
@@ -304,6 +354,7 @@ impl<Message: 'static> NonKeyedElement<Message> {
             ns,
             class,
             attrs,
+            styles,
             listeners,
             children,
             node,
@@ -324,6 +375,7 @@ impl<Message: 'static> NonKeyedElement<Message> {
             ns,
             class,
             attrs,
+            styles,
             listeners,
             children,
             node,
@@ -363,6 +415,7 @@ impl<Message: 'static> KeyedElement<Message> {
             ns,
             class,
             attrs,
+            styles,
             listeners,
             children,
             node,
@@ -383,6 +436,7 @@ impl<Message: 'static> KeyedElement<Message> {
             ns,
             class,
             attrs,
+            styles,
             listeners,
             children,
             node,
