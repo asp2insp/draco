@@ -8,6 +8,7 @@ pub struct Request {
     method: String,
     url: String,
     body: Option<String>,
+    content_type: Option<String>,
 }
 
 impl Request {
@@ -16,12 +17,20 @@ impl Request {
             method: method.into(),
             url: url.into(),
             body: None,
+            content_type: None,
         }
     }
 
-    pub fn body(self, b: String) -> Self {
+    pub fn body(self, b: &str) -> Self {
         Request {
-            body: Some(b),
+            body: Some(b.to_owned()),
+            ..self
+        }
+    }
+
+    pub fn content_type(self, cty: &str) -> Self {
+        Request {
+            content_type: Some(cty.to_owned()),
             ..self
         }
     }
@@ -33,6 +42,10 @@ impl Request {
             init.body(Some(&JsValue::from_str(&b)));
         }
         let request = web::Request::new_with_str_and_init(&self.url, &init).unwrap();
+        if let Some(cty) = self.content_type {
+            request.headers().append("content_type", &cty)
+                .expect("headers.append");
+        }
         let promise = web::window().unwrap().fetch_with_request(&request);
         R::send(JsFuture::from(promise).map(|response| {
             assert!(response.is_instance_of::<web::Response>());
@@ -75,6 +88,6 @@ pub fn get(url: &str) -> Request {
     Request::new("GET", url)
 }
 
-pub fn post(url: &str, body: String) -> Request {
+pub fn post(url: &str, body: &str) -> Request {
     Request::new("POST", url).body(body)
 }
