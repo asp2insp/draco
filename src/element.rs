@@ -328,6 +328,10 @@ where
 }
 
 impl<Message: 'static> NonKeyedElement<Message> {
+    pub fn get_name(&self) -> &str {
+        self.name.as_ref()
+    }
+
     pub fn push<N: Into<Node<Message>>>(mut self, node: N) -> Self {
         self.children.0.push(node.into());
         self
@@ -335,6 +339,11 @@ impl<Message: 'static> NonKeyedElement<Message> {
 
     pub fn append<N: Into<Node<Message>>, I: IntoIterator<Item = N>>(mut self, i: I) -> Self {
         self.children.0.extend(i.into_iter().map(Into::into));
+        self
+    }
+
+    pub fn prepend<N: Into<Node<Message>>>(mut self, node: N) -> Self {
+        self.children.0.insert(0, node.into());
         self
     }
 
