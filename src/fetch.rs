@@ -43,7 +43,7 @@ impl Request {
         }
         let request = web::Request::new_with_str_and_init(&self.url, &init).unwrap();
         if let Some(cty) = self.content_type {
-            request.headers().append("content_type", &cty)
+            request.headers().set("content-type", &cty)
                 .expect("headers.append");
         }
         let promise = web::window().unwrap().fetch_with_request(&request);
